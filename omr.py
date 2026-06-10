@@ -1,17 +1,11 @@
 import cv2
-import numpy as np
+import utills
 
 img = cv2.imread("omr_answerd.jpg")
 
 
-def average(listOfItems):
-    try:
-        return sum(listOfItems) // len(listOfItems)
-    except ZeroDivisionError:
-        return 0
-
-
 def main(image):
+
     if image is not None:
         # Pre-Processing
         grayed = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -21,54 +15,15 @@ def main(image):
         # countour detection
         countours = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         countours = countours[0] if len(countours) == 2 else countours[1]
+        contour_data = utills.extractContourData(countours)
 
-        contour_data = []
-        x_list = set()
-        y_list = set()
-        for contour in countours:
-            area = cv2.contourArea(contour)
-            if area > 10:
-                x, y, w, h = cv2.boundingRect(contour)
-                perimeter = cv2.arcLength(contour, True)
-                contour_data.append([perimeter, x, y, w, h])
-
-        avg_perimeter = average([data[0] for data in contour_data])
-        y_avg = average([data[2] for data in contour_data])
-
-        answers = []
-        for data in contour_data:
-            if (
-                data[0] <= avg_perimeter
-                and data[2] >= y_avg - 70
-                and data[2] <= y_avg + 140
-            ):
-                x, y, w, h = data[1], data[2], data[3], data[4]
-                answers.append((x, y, w, h))
-                x_list.add(x)
-                y_list.add(y)
-            else:
-                continue
-
-        answers = sorted(answers, key=lambda x: x[1])
-
-        x_list = sorted(x_list)
-        x_min = x_list[0]
-        diffs = {b - a for a, b in zip(x_list, x_list[1:]) if b - a > 5}
-
-        sorted_x = []
-        least_val = float("-inf")
-        for i in sorted(diffs):
-            if i - least_val > 5:
-                sorted_x.append(i)
-                least_val = i
-
-        if len(sorted_x) == 2:
-            option_dist = sorted_x[0]
-            section_dist = sorted_x[1]
-            tolerence = option_dist // 2
-            x_min = x_min + tolerence
+        answer_layout = utills.detectAnswerLayout(contour_data)
+        if answer_layout:
+            answers = answer_layout[0]
+            x_min = answer_layout[1]
+            option_dist = answer_layout[2]
+            section_dist = answer_layout[3]
         else:
-            print("Error occured in option detection")
             return -1
 
         print("Section A")
@@ -83,6 +38,8 @@ def main(image):
                 print("C")
             elif x1 < (x_min + (3 * option_dist)):
                 print("D")
+            else:
+                print("0")
 
         print("Section B")
         for i in range(0, len(answers), 2):
@@ -96,7 +53,8 @@ def main(image):
                 print("C")
             elif x2 < (x_min + section_dist + (6 * option_dist)):
                 print("D")
-
+            else:
+                print("0")
     else:
         print("Failed to load image")
         return -1
