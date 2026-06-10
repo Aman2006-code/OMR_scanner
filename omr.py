@@ -20,7 +20,7 @@ def main(image):
         answer_layout = utills.detectAnswerLayout(contour_data)
         if answer_layout:
             answers = answer_layout[0]
-            x_min = answer_layout[1]
+            x_min = answer_layout[1][0]
             option_dist = answer_layout[2]
             section_dist = answer_layout[3]
         else:

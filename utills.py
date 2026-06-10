@@ -55,11 +55,11 @@ def detectAnswerLayout(contour_data):
         option_dist = sorted_x[0]
         section_dist = sorted_x[1]
         tolerence = option_dist // 2
-        x_min = list(x_min + tolerence)
+        x_min = [x_min + tolerence]
     else:
         print("Error occured in option detection")
         return []
 
-    answerLayout = answers + x_min + option_dist + section_dist
+    answerLayout = [answers, x_min, option_dist, section_dist]
 
     return answerLayout
