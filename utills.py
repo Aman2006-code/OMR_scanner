@@ -2,6 +2,7 @@ from collections import defaultdict
 from statistics import median
 
 import cv2
+import numpy as np
 
 
 def average(listOfItems):
@@ -11,99 +12,109 @@ def average(listOfItems):
         return 0
 
 
+# Image pre-processing
+def preprocess(image):
+    grayed = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # Grayscale conversion
+    blurred = cv2.GaussianBlur(grayed, (3, 3), 0)  # Blured
+    thresh = cv2.threshold(
+        blurred,
+        0,
+        255,
+        cv2.THRESH_BINARY_INV
+        | cv2.THRESH_OTSU,  # Converting to an inverted binary image(Black for pixels above threshold);
+    )[
+        1
+    ]  # Applied with otsu thresholding - algorithm automatically decides the optimal threshold value....
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))  # Defined a 3x3 kernel
+    final = cv2.morphologyEx(
+        thresh, cv2.MORPH_OPEN, kernel
+    )  # removed black regions less than kernel (3x3)
+    return final
+
+
+# Contour data extraction (edges)
 def extractContourData(contours):
     contourData = []
-    area_list = []
-    for contour in contours:
-        area_list.append(cv2.contourArea(contour))
-    avg_area = median(area_list)
 
     for contour in contours:
-        area = cv2.contourArea(contour)
-        if 1.5 * avg_area < area:
-            x, y, w, h = cv2.boundingRect(contour)
-            perimeter = cv2.arcLength(contour, True)
-            contourData.append([perimeter, x, y, w, h])
+        x, y, w, h = cv2.boundingRect(
+            contour
+        )  # cordinates (x,y), width, height of the rectangle around detected contour
+        area = cv2.contourArea(contour)  # area enclosed by the detected contour
+        perimeter = cv2.arcLength(contour, True)  # Perimeter of the detected contour
+        cover = cv2.contourArea(cv2.convexHull(contour)) / area
+        contourData.append([x, y, w, h, area, perimeter, cover])  # Listing
     return contourData
 
 
-def cluster_boundaries_y(ans):
-    ans = sorted(ans, key=lambda x: x[0])
-    y = [data[1] for data in ans]
-    x_count = defaultdict(int)
-    for s in y:
-        x_count[s] += 1
-    y_boundary = []
-    for key, value in x_count.items():
-        if value > 2:
-            y_boundary.append(key)
-    y_max = max(y_boundary)
-    y_min = (min(y_boundary) + y_max) // 2
-
-    if len(y_boundary) > 1:
-        return [y_min, y_max]
-    return None
-
-
-def detectAnswerLayout(contour_data):
-    avg_perimeter = average([data[0] for data in contour_data])
-    answers = []
-    x_list = set()
-    cluster_y = cluster_boundaries_y(
-        [[data[1], data[2], data[3], data[4]] for data in contour_data]
+def boundRegion(contour_data, questionNumber):
+    x_list = defaultdict(
+        list
+    )  # Dictionary of all Y - cordinates that has a recognised contour at a particular X (X : [value of Ys])
+    y_list = defaultdict(
+        list
+    )  # Dictionary of all X - cordinates that has a recognised contour at a particular Y (Y : [value of Xs])
+    for contour in contour_data:
+        x_list[contour[0]].append(contour[1])
+        y_list[contour[1]].append(contour[0])
+    strip_vertical_x = max(x_list, key=lambda k: len(x_list[k]))
+    strip_horizontal_y = max(
+        [key for key, value in y_list.items() if len(value) == 4], default=0
     )
-    print(cluster_y)
-    if cluster_y is not None:
-        y_min = cluster_y[0]
-        y_max = cluster_y[1]
-    else:
-        return None
-    for data in contour_data:
-        if data[0] <= 1.1 * avg_perimeter and y_min <= data[2] < y_max:
-            x, y, w, h = data[1], data[2], data[3], data[4]
-            answers.append((x, y, w, h))
-            x_list.add(x)
-        else:
-            continue
 
-    answers = sorted(answers, key=lambda x: (x[1], x[0]))
+    strip_vertical = x_list[strip_vertical_x]  # The left margin
+    strip_horizontal = y_list[
+        strip_horizontal_y
+    ]  # The bottom strip (That has a,c,d,D positions identified for optical detection aid)
 
-    x_list = sorted(x_list)
-    x_min = x_list[0]
-    diffs = {b - a for a, b in zip(x_list, x_list[1:]) if b - a > 5}
+    strip_vertical.sort()
+    strip_horizontal.sort()
+    a_posit = strip_horizontal[0]  # Position of option a
+    option_dist = (
+        strip_horizontal[2] - strip_horizontal[1]
+    )  # Distance between any two options
+    section_dist = (
+        strip_horizontal[3] - strip_horizontal[2]
+    )  # Distance between the two sections
+    question_dist = median(
+        [
+            strip_vertical[i] - strip_vertical[i - 1]
+            for i in range(1, len(strip_vertical))
+        ]
+    )  # Assumed distance between two questions
 
-    sorted_x = []
-    least_val = float("-inf")
-    for i in sorted(diffs):
-        if i - least_val > 5:
-            sorted_x.append(i)
-            least_val = i
+    min_x, max_x = strip_vertical_x + 5, strip_horizontal[-1] + 5
+    max_y = strip_horizontal_y
+    min_y = max_y - ((questionNumber // 2) * question_dist) - 10
 
-    if len(sorted_x) == 2:
-        option_dist = sorted_x[0]
-        section_dist = sorted_x[1]
-        tolerence = option_dist // 2
-        x_min = x_min + tolerence
-    else:
-        print("Error occured in option detection")
-        return []
-
-    answer_layout = [answers, x_min, option_dist, section_dist]
-    return answer_layout
+    answerLayout = []
+    for contour in contour_data:
+        cover = contour[5]
+        if min_x <= contour[0] <= max_x and min_y <= contour[1] < max_y:
+            if cover > 0.98:
+                answerLayout.append(contour)  # Answer layout cropped out
+    return answerLayout, a_posit, option_dist, section_dist, question_dist
 
 
-def longest_continous_strip(contour_data):
-    data_strip = []
-    for data in contour_data:
-        data_strip.append([data[1], data[2]])
-    data_strip = sorted(data_strip, key=lambda x: x[0])
-    count = defaultdict(int)
-    for data in data_strip:
-        count[data[0]] += 1
+def validator(data, option_a, option, section, question):
+    options = []
+    for i in range(2):
+        for j in range(4):
+            options.append(
+                option_a + i * section + j * option
+            )  # All possible x cordinates of options available(a,b,c,d,A,B,C,D)
+    valid_contours = []
+    average_area = average([x[4] for x in data])  # Average area of the contours
+    for contour in data:
+        if (
+            average_area <= contour[4] <= 2 * average_area
+        ):  # Making up for false positives that are small noises
+            if any(
+                x - 5 <= contour[0] <= x + 5 for x in options
+            ):  # Making up for false positives that lay outside expected answer positions
+                valid_contours.append(contour[:4])  # Final detected answer contours
+    return valid_contours
 
-    max_x = 0
-    for key, value in count.items():
-        if value == max(count.values()):
-            max_x = key
 
-    return max_x
+def answer(valid_contours):
+    pass
