@@ -83,6 +83,8 @@ def boundRegion(contour_data, questionNumber):
         ]
     )  # Assumed distance between two questions
 
+    last_quest = strip_horizontal_y - question_dist
+
     min_x, max_x = strip_vertical_x + 5, strip_horizontal[-1] + 5
     max_y = strip_horizontal_y
     min_y = max_y - ((questionNumber // 2) * question_dist) - 10
@@ -93,7 +95,7 @@ def boundRegion(contour_data, questionNumber):
         if min_x <= contour[0] <= max_x and min_y <= contour[1] < max_y:
             if cover > 0.98:
                 answerLayout.append(contour)  # Answer layout cropped out
-    return answerLayout, a_posit, option_dist, section_dist, question_dist
+    return answerLayout, a_posit, last_quest, option_dist, section_dist, question_dist
 
 
 def validator(data, option_a, option, section, question):
@@ -116,5 +118,48 @@ def validator(data, option_a, option, section, question):
     return valid_contours
 
 
-def answer(valid_contours):
+def fixFalsePositives(valid_contours, last_quest, question):
+    if not valid_contours:
+        return [], last_quest
+
+    # Average Contour Area (Approximation)
+    avg_area = average([x[2] * x[3] for x in valid_contours])
+
+    # Sort contours by their Y-coordinate
+    valid_contours.sort(key=lambda x: x[1])
+
+    def cleanRow(row):
+        # If there are more than 2 bubbles =>  we have noise (Since layout is two layered)
+        if len(row) > 2:
+            row.sort(
+                key=lambda area: abs((area[2] * area[3]) - avg_area)
+            )  # Sort bubbles by their closeness to average area
+            row = row[:2]  # Two most similar bubbles get selected.
+
+        row.sort(key=lambda x: x[0])  # Final Sort by X-coordinate
+        return row
+
+    answer_list = []  # Initialising an empty answer list
+    current_row = [valid_contours[0]]  # First data of intrest is the first row
+    y_tolerance = (
+        question / 2.0
+    )  # Less than half way from one question is no next question..
+    for contour in valid_contours[1:]:
+        if abs(contour[1] - current_row[0][1]) <= y_tolerance:  # If same line
+            current_row.append(contour)  # Append to a temperory current line column
+        else:  # Current line ends
+            answer_list.extend(
+                cleanRow(current_row)
+            )  # Process the data in the temoporary current line clean it and add to answer
+            current_row = [
+                contour
+            ]  # Make the current line empty and add the next line(This contour) to it..
+
+    if current_row:
+        answer_list.extend(cleanRow(current_row))  # Final row
+
+    return answer_list
+
+
+def answer(contours, optionA, option_dist, section_dist, row_dist, last_question):
     pass

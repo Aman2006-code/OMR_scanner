@@ -3,6 +3,7 @@ import cv2
 import utills
 
 img = cv2.imread("test_1.jpg")
+questionNumber = 30  # Make it user input if layout of answer sheet changes.
 # Resizing to 500x500 for ease of processing
 if img.shape[0] > 500 or img.shape[1] > 500:
     img = cv2.resize(img, (500, 500))
@@ -22,8 +23,8 @@ def main(image):
         contour_data = utills.extractContourData(contours)
 
         # Cropping out shapes in the answer layout with details about positions of options
-        bound_region, option_a, option, section, question = utills.boundRegion(
-            contour_data, 30
+        bound_region, option_a, last_quest, option, section, question = (
+            utills.boundRegion(contour_data, questionNumber)
         )
 
         # Cleaning up the Answer layout to remove noise and irrelevant contours
@@ -31,15 +32,14 @@ def main(image):
             bound_region, option_a, option, section, question
         )
 
+        # Getting answers using y position and x position mapping
+        answers = utills.fixFalsePositives(valid_contours, last_quest, question)
         # Display of output yet found...
-        for contour in valid_contours:
+        for contour in answers:
             x, y, w, h = contour
             cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
         cv2.imshow("Valid Contours", image)
         cv2.waitKey(0)
-
-        # Getting answers using y position and x position mapping
-        answers = utills.answer(valid_contours)
 
         # Returning the identified answers with relevant data(Location of option 'A', option distance,seciton distance)
         if answers is not None:
