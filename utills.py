@@ -4,6 +4,8 @@ from statistics import median
 import cv2
 import numpy as np
 
+from omr import answer_sheet
+
 
 def average(listOfItems):
     try:
@@ -161,5 +163,57 @@ def fixFalsePositives(valid_contours, last_quest, question):
     return answer_list
 
 
-def answer(contours, optionA, option_dist, section_dist, row_dist, last_question):
-    pass
+# Index to option converter
+def mapOptionToIndex(x):
+    if x == 0:
+        return 'a'
+    elif x == 1:
+        return 'b'
+    elif x == 2:
+        return 'c'
+    elif x == 3:
+        return 'd'
+    elif x == 4:
+        return 'A'
+    elif x == 5:
+        return 'B'
+    elif x == 6:
+        return 'C'
+    elif x == 7:
+        return 'D'
+    else:
+        return -1
+
+
+def answer(answer_list, optionA, optionDist, sectionDist, last_option, questionDist, questionNumber):
+    # Making a list of x cordinates of every options on the two sections
+    option_list = sorted([(optionA + (i * optionDist) + (j * sectionDist)) for i in range(4) for j in range(2)])
+    # Making a list of y cordinates of every rows of questions
+    question_list = sorted([(last_option - (_ * questionDist)) for _ in range(questionNumber//2)])
+    answerMap = defaultdict(list)
+    for answer in answer_list:
+        for i in range(len(option_list)):
+            # Mapping Y cordinates of answers to their respective detected option with a threshold of 50% for two options position on x axis.
+            if ((option_list[i] - (0.5 * optionDist)) <= answer[0] <= (option_list[i] + (0.5 * optionDist))):
+                answerMap[answer[1]].append(mapOptionToIndex(i))
+
+    result = defaultdict(list)
+
+    for key, value in answerMap.items():
+        for i in range(len(question_list)):
+            # Replacing the Y cordinates of answers with actual question numbers by indexing expected question number.
+            if ((question_list[i] - (0.5 * questionDist)) <= key <= (question_list[i] + (0.5 * questionDist))):
+                for x in value:
+                    if x.lower() == x:
+                        result[i + 1] = x.lower()
+                    else:
+                        result[i + 16] = x.lower()
+                break
+
+    for i in range(questionNumber):
+        if i + 1 not in result:
+            # identifiying unanswered questions.
+            result[i+1] = '-'
+    result = dict(sorted(result.items()))
+
+    return result

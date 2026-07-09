@@ -23,18 +23,21 @@ def main(image):
         contour_data = utills.extractContourData(contours)
 
         # Cropping out shapes in the answer layout with details about positions of options
-        bound_region, option_a, last_quest, option, section, question = (
+        bound_region, option_a, last_quest, option, section, question_dist = (
             utills.boundRegion(contour_data, questionNumber)
         )
 
         # Cleaning up the Answer layout to remove noise and irrelevant contours
         valid_contours = utills.validator(
-            bound_region, option_a, option, section, question
+            bound_region, option_a, option, section, question_dist
         )
 
         # Getting answers using y position and x position mapping
-        answers = utills.fixFalsePositives(valid_contours, last_quest, question)
+        answers = utills.fixFalsePositives(valid_contours, last_quest, question_dist)
         # Display of output yet found...
+
+        answer_map = utills.answer(answers, option_a, option, section, last_quest, question_dist, questionNumber)
+        print(answer_map)
         for contour in answers:
             x, y, w, h = contour
             cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
