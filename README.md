@@ -8,26 +8,22 @@ OMR processing still remains the central problem from small scale to large natio
 computer vision I decided to built this basic OMR Scanner.
 
 ## How it works?
-The repository requires you to save the scanned answer sheet in the same folder with name 'test_1.jpeg'.
-The program reads this image and does pre processing on it by converting it into grayscale provide enough blur applying otsu thresholding to convert into a binary image
-and use kerneling to remove false positives.
-Then the opencv tool is employed to find the contour shapes its edges and its other data (perimeter,area,cover etc).
-Since the standard OMR sheet is having a discontinous strip of contours on left margin this sheet is identified as the most continous vertical contour strip.
-The bottom of the strip is parellel to identifiers on OMR - which are 4 markings parellel to Section A option - a,c,d and Section B option - d.
-This information functions as inputs to find distance between any two options and distance between two sections.
-This identifier strip also acts as the lower horizontal margin.
-The discontinous vertical strip are discontinous at the same distance as that of the vertical distance between two continous. For accuracy the median distance 
-of vertical strip break is took as vertical distance of question.
-Half way of the vertical strip acts as the top horizontal margin of the answer region.
+1. **Input Format** - The repository requires you to save the scanned answer sheet in the same folder with name 'test_1.jpeg'.
+2. **Pre Processing** - The program reads this image and does pre processing on it by converting it into grayscale provide enough blur applying otsu thresholding to convert into a binary image and use kerneling to remove false positives.
+3. **Contour Detection** - Then the opencv tool is employed to find the contour shapes its edges and its other data (perimeter,area,cover etc).
+4. **Left Margin** - Since the standard OMR sheet is having a discontinous strip of contours on left margin this sheet is identified as the most continous vertical contour strip.
+5. **Identifiers** - The bottom of the strip is parellel to identifiers on OMR - which are 4 markings parellel to Section A option - a,c,d and Section B option - d. This information functions as inputs to find distance between any two options and distance between two sections.
+6. **Lower Margin** - This identifier strip also acts as the lower horizontal margin.
+7. **Vertical distance** - The discontinous vertical strip are discontinous at the same distance as that of the vertical distance between two continous. For accuracy the median distance of vertical strip break is took as vertical distance of question.
+8. **Top Margin** - Half way of the vertical strip acts as the top horizontal margin of the answer region.
+
 Hence the Answer region is cropped out from the OMR sheet with option distance section distance vertical distance and hence position of each options.
-Now from the contour data extracted earlier after eliminating false positive using cover, perimeter and area data answers are identified.
-This is done by mapping option/section distance with contour data.
-Then by mapping section dist with contour data the identified answers are mapped to their respective question numbers.
+
+9. **False positive elimination and answer identification** - Now from the contour data extracted earlier after eliminating false positive using cover, perimeter and area data(using thresholding) answers are identified. This is done by mapping option/section distance with contour data.
+10. **Answer mapping** - Then by mapping section dist with contour data the identified answers are mapped to their respective question numbers.
 
 ## Structure
 All the functions are stored in utills.py for better reading of omr.py
-
-## How It Works
 
 
 ## Usage
