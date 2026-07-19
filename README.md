@@ -28,7 +28,7 @@ All the functions are stored in utills.py for better reading of omr.py
 
 ## Usage
 
-## 0. Pre-Requisites
+### 0. Pre-Requisites
 After forking the repo get a python virtual enviornment and install the pre requisites by running:
 ```bash
 pip install -r requirements.txt
