@@ -38,3 +38,4 @@ pip install -r requirements.txt
 
 Run the script in your terminal environment. It will prompt you to enter the actual answers for your questions and will check with the student response.
 
+![sample of working](detection.png)
